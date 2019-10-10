@@ -17,5 +17,5 @@ docker run -ti --rm \
 #pip install git+https://github.com/nipy/nipype
 pip install git+https://github.com/bids-standard/pybids
 cd /home/diva-project
-python run_preproc.py /bids_dataset /outputs --participant-label TEST1 \
+python run.py /bids_dataset /outputs --participant-label TEST1 \
   -w /work --nthreads 1 --graph

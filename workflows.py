@@ -65,6 +65,8 @@ def init_phase_processing_wf(name='phase_processing_wf'):
 def init_workflow(bids_dir, output_dir, work_dir, subject_list,
                   session_label, task_label, run_label):
     """
+    A workflow for preprocessing complex-valued multi-echo fMRI data with
+    single-band reference images and available T1s.
     """
     # setup workflow
     participant_wf = pe.Workflow(name='participant_wf')
@@ -82,43 +84,25 @@ def init_workflow(bids_dir, output_dir, work_dir, subject_list,
                                     run=run_label,
                                     ses=session_label)
 
-        # collect files to be associated with each preproc
-        bold_mag_files = subject_data['bold_mag_files']
-        bold_mag_metadata = subject_data['bold_mag_metadata']
-        bold_phase_files = subject_data['bold_phase_files']
-        bold_phase_metadata = subject_data['bold_phase_metadata']
-        sbref_mag_files = subject_data['sbref_mag_files']
-        sbref_mag_metadata = subject_data['sbref_mag_metadata']
-        sbref_phase_files = subject_data['sbref_phase_files']
-        sbref_phase_metadata = subject_data['sbref_phase_metadata']
-        fmap_mag1_files = subject_data['fmap_mag1_files']
-        fmap_mag1_metadata = subject_data['fmap_mag1_metadata']
-        fmap_mag2_files = subject_data['fmap_mag2_files']
-        fmap_mag2_metadata = subject_data['fmap_mag2_metadata']
-        fmap_phasediff_files = subject_data['fmap_phasediff_files']
-        fmap_phasediff_metadata = subject_data['fmap_phasediff_metadata']
-        t1w_files = subject_data['t1w_files']
-        t1w_metadata = subject_data['t1w_metadata']
-
         single_subject_wf = init_single_subject_wf(
             name='single_subject_' + subject_label + '_wf',
             output_dir=output_dir,
-            bold_mag_files=bold_mag_files,
-            bold_mag_metadata=bold_mag_metadata,
-            bold_phase_files=bold_phase_files,
-            bold_phase_metadata=bold_phase_metadata,
-            sbref_mag_files=sbref_mag_files,
-            sbref_mag_metadata=sbref_mag_metadata,
-            sbref_phase_files=sbref_phase_files,
-            sbref_phase_metadata=sbref_phase_metadata,
-            fmap_mag1_files=fmap_mag1_files,
-            fmap_mag1_metadata=fmap_mag1_metadata,
-            fmap_mag2_files=fmap_mag2_files,
-            fmap_mag2_metadata=fmap_mag2_metadata,
-            fmap_phasediff_files=fmap_phasediff_files,
-            fmap_phasediff_metadata=fmap_phasediff_metadata,
-            t1w_files=t1w_files,
-            t1w_metadata=t1w_metadata,
+            bold_mag_files=subject_data['bold_mag_files'],
+            bold_mag_metadata=subject_data['bold_mag_metadata'],
+            bold_phase_files=subject_data['bold_phase_files'],
+            bold_phase_metadata=subject_data['bold_phase_metadata'],
+            sbref_mag_files=subject_data['sbref_mag_files'],
+            sbref_mag_metadata=subject_data['sbref_mag_metadata'],
+            sbref_phase_files=subject_data['sbref_phase_files'],
+            sbref_phase_metadata=subject_data['sbref_phase_metadata'],
+            fmap_mag1_files=subject_data['fmap_mag1_files'],
+            fmap_mag1_metadata=subject_data['fmap_mag1_metadata'],
+            fmap_mag2_files=subject_data['fmap_mag2_files'],
+            fmap_mag2_metadata=subject_data['fmap_mag2_metadata'],
+            fmap_phasediff_files=subject_data['fmap_phasediff_files'],
+            fmap_phasediff_metadata=subject_data['fmap_phasediff_metadata'],
+            t1w_files=subject_data['t1w_files'],
+            t1w_metadata=subject_data['t1w_metadata'],
         )
         single_subject_wf.config['execution']['crashdump_dir'] = (
             os.path.join(output_dir, 'sub-' + subject_label, 'log')
