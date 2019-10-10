@@ -19,6 +19,7 @@ from nipype.interfaces import utility as niu
 from nipype.interfaces.utility import Function
 import nipype.interfaces.io as nio
 from niflow.nipype1.workflows.dmri.fsl.utils import siemens2rads, rads2radsec
+# Currently requires https://github.com/mattcieslak/sdcflows/tree/phase1phase2
 from sdcflows import init_phdiff_wf
 
 from utils import *
@@ -172,7 +173,7 @@ def init_single_subject_wf(name, output_dir,
                           name='output_node')
 
     # Generate GRE field maps
-    fmap_phdiff_wf = init_phdiff_wf()
+    fmap_phdiff_wf = init_phdiff_wf(create_phasediff=False)
     workflow.connect(input_node, 'fmap_phasediff_files', fmap_phdiff_wf, 'inputnode.phasediff')
     workflow.connect(input_node, 'fmap_mag1_files', fmap_phdiff_wf, 'inputnode.magnitude')
     workflow.connect(input_node, 'fmap_phasediff_metadata', fmap_phdiff_wf, 'inputnode.metadata')
