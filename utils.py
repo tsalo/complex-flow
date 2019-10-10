@@ -3,20 +3,37 @@ Miscellaneous utility functions.
 """
 
 
-def recover_kspace(magnitude_file, phase_file, out_file=None):
+def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file=None):
+    """
+    Convert raw magnitude and phase data into effective k-space data, split
+    into real and imaginary components.
+    """
     import numpy as np
     import nibabel as nib
+    import os.path as op
 
     magnitude_img = nib.load(magnitude_file)
     phase_data = nib.load(phase_file).get_data()
     magnitude_data = magnitude_img.get_data()
+    kspace_data = np.zeros(phase_data.shape, dtype=complex)
 
     cmplx_data = np.vectorize(complex)(magnitude_data, phase_data)
-    for vol in range(cmplx_data.shape[3]):
-        for slice in range(cmplx_data.shape[2]):
-            slice_data = cmplx_data[:, :, slice, vol]
+    for i_vol in range(cmplx_data.shape[3]):
+        for j_slice in range(cmplx_data.shape[2]):
+            slice_data = cmplx_data[:, :, j_slice, i_vol]
             slice_kspace = np.fft.ifft(slice_data)
-            print(slice_kspace.shape)
+            kspace_data[:, :, j_slice, i_vol] = slice_kspace
+
+    kspace_real_data, kspace_imag_data = kspace_data.real, kspace_data.imag
+    kspace_real_img = nib.Nifti1Image(kspace_real_data, magnitude_img.affine, magnitude_img.header)
+    kspace_imag_img = nib.Nifti1Image(kspace_imag_data, magnitude_img.affine, magnitude_img.header)
+    if out_real_file is None:
+        out_real_file = out_file = op.abspath('complexReal_{}'.format(op.basename(magnitude_file)))
+    if out_imag_file is None:
+        out_imag_file = out_file = op.abspath('complexImag_{}'.format(op.basename(magnitude_file)))
+    kspace_real_img.to_filename(out_real_file)
+    kspace_imag_img.to_filename(out_imag_file)
+    return out_real_file, out_imag_file
 
 
 def convert_to_radians(phase_file, out_file=None):
@@ -59,11 +76,17 @@ def convert_to_radians(phase_file, out_file=None):
 
 
 def get_fmap_tediff(metadata):
+    """
+    Get difference in field map phase images' echo times.
+    """
     delta_te = metadata['EchoTime2'] - metadata['EchoTime1']
     return delta_te
 
 
 def compute_phasediff(phase_files, phase_metadata, out_file=None):
+    """
+    Compute phase-difference image in rad/s from two phase files in rad/s.
+    """
     import os.path as op
     import numpy as np
     import nibabel as nib
@@ -83,11 +106,18 @@ def compute_phasediff(phase_files, phase_metadata, out_file=None):
 
 
 def fake_unwrap(magnitude_file, phase_file):
+    """
+    An identity function used as a placeholder for PRELUDE,
+    which can take a long time.
+    """
     unwrapped_phase_file = phase_file
     return unwrapped_phase_file
 
 
 def get_slice_timing(metadata):
+    """
+    Get slice timing information (in seconds) from metadata dictionary.
+    """
     return metadata['SliceTiming']
 
 
@@ -103,7 +133,7 @@ def pick_first(func):
 
 def pick_second(func):
     """
-    Used to grab first echo for multi-echo data
+    Used to grab second echo for multi-echo data
     """
     if isinstance(func, list):
         return func[1]
@@ -141,6 +171,9 @@ def get_phase(layout, func_obj):
 
 
 def get_sbref(layout, func_obj, reconstruction='magnitude'):
+    """
+    Get single-band reference image associated with a functional run.
+    """
     entity_dict = func_obj.get_entities().copy()
     entity_dict.pop('suffix')
     files = layout.get(suffix='sbref', reconstruction=reconstruction, **entity_dict)
@@ -153,6 +186,9 @@ def get_sbref(layout, func_obj, reconstruction='magnitude'):
 
 
 def collect_data(layout, participant_label, ses=None, task=None, run=None):
+    """
+    Collect required data from the dataset.
+    """
     # get all the preprocessed fmri images.
     bold_query = {
         'subject': participant_label,

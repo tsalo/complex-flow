@@ -24,21 +24,42 @@ from sdcflows import init_phdiff_wf
 from utils import *
 
 
-def init_phase_processing_wf():
+def init_phase_processing_wf(name='phase_processing_wf'):
+    """
+    A workflow for processing (rescaling + unwrapping) of phase data.
+    """
+    workflow = pe.Workflow(name=name)
+
+    # name the nodes
+    input_node = pe.Node(niu.IdentityInterface(
+            fields=['magnitude_files',
+                    'phase_files']),
+        name='input_node',
+        iterables=[('magnitude_files', magnitude_files),
+                ('phase_files', phase_files)],
+        synchronize=True)
+
     bold_phase_rescale = pe.MapNode(
         interface=Function(['phase_file'], ['out_file'], convert_to_radians),
         name='bold_phase_rescale',
         iterfield=['phase_file'],
     )
-    workflow.connect(input_node, 'bold_phase_files', bold_phase_rescale, 'phase_file')
+    workflow.connect(input_node, 'phase_files', bold_phase_rescale, 'phase_file')
     bold_phase_unwrap = pe.MapNode(
         interface=fsl.PRELUDE(),
         #interface=Function(['magnitude_file', 'phase_file'], ['unwrapped_phase_file'], fake_unwrap),
         name='bold_phase_unwrap',
         iterfield=['magnitude_file', 'phase_file'],
     )
-    workflow.connect(input_node, 'bold_mag_files', bold_phase_unwrap, 'magnitude_file')
+    workflow.connect(input_node, 'magnitude_files', bold_phase_unwrap, 'magnitude_file')
     workflow.connect(bold_phase_rescale, 'out_file', bold_phase_unwrap, 'phase_file')
+
+    output_node = pe.Node(niu.IdentityInterface(
+            fields=['unwrapped_phase_files']),
+        name='output_node')
+    workflow.connect(bold_phase_unwrap, 'unwrapped_phase_file',
+                     output_node, 'unwrapped_phase_files')
+    return workflow
 
 
 def init_workflow(bids_dir, output_dir, work_dir, subject_list,
@@ -200,7 +221,6 @@ def init_single_subject_wf(name, output_dir,
 
     # Process BOLD phase data
     bold_phase_wf = init_phase_processing_wf()
-
     workflow.connect(input_node, 'bold_phase_files',
                      bold_phase_wf, 'inputnode.phase_files')
     workflow.connect(input_node, 'bold_mag_files',
@@ -257,8 +277,9 @@ def init_single_subject_wf(name, output_dir,
         name='bold_motionCorrection_applyPhase',
         iterfield=['in_file'],
     )
-    workflow.connect(bold_motionCorrection_estimate, 'oned_matrix_save', bold_motionCorrection_applyPhase, 'in_matrix')
-    workflow.connect(bold_phase_unwrap, 'unwrapped_phase_file',
+    workflow.connect(bold_motionCorrection_estimate, 'oned_matrix_save',
+                     bold_motionCorrection_applyPhase, 'in_matrix')
+    workflow.connect(bold_phase_wf, 'unwrapped_phase_files',
                      bold_motionCorrection_applyPhase, 'in_file')
     workflow.connect(input_node, ('sbref_mag_files', pick_first),
                      bold_motionCorrection_applyPhase, 'reference')
