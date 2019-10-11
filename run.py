@@ -57,7 +57,7 @@ def get_parser():
 
 
 def main(argv=None):
-    from minimal_preprocessing import init_workflow
+    from workflows import init_workflow
 
     # get commandline options
     opts = get_parser().parse_args(argv)

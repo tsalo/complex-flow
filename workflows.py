@@ -20,7 +20,7 @@ from nipype.interfaces.utility import Function
 import nipype.interfaces.io as nio
 from niflow.nipype1.workflows.dmri.fsl.utils import siemens2rads, rads2radsec
 # Currently requires https://github.com/mattcieslak/sdcflows/tree/phase1phase2
-from sdcflows import init_phdiff_wf
+from sdcflows.workflows.phdiff import init_phdiff_wf
 
 from utils import *
 
@@ -32,34 +32,31 @@ def init_phase_processing_wf(name='phase_processing_wf'):
     workflow = pe.Workflow(name=name)
 
     # name the nodes
-    input_node = pe.Node(niu.IdentityInterface(
+    inputnode = pe.Node(niu.IdentityInterface(
             fields=['magnitude_files',
                     'phase_files']),
-        name='input_node',
-        iterables=[('magnitude_files', magnitude_files),
-                ('phase_files', phase_files)],
-        synchronize=True)
+        name='inputnode')
 
     bold_phase_rescale = pe.MapNode(
         interface=Function(['phase_file'], ['out_file'], convert_to_radians),
         name='bold_phase_rescale',
         iterfield=['phase_file'],
     )
-    workflow.connect(input_node, 'phase_files', bold_phase_rescale, 'phase_file')
+    workflow.connect(inputnode, 'phase_files', bold_phase_rescale, 'phase_file')
     bold_phase_unwrap = pe.MapNode(
         interface=fsl.PRELUDE(),
         #interface=Function(['magnitude_file', 'phase_file'], ['unwrapped_phase_file'], fake_unwrap),
         name='bold_phase_unwrap',
         iterfield=['magnitude_file', 'phase_file'],
     )
-    workflow.connect(input_node, 'magnitude_files', bold_phase_unwrap, 'magnitude_file')
+    workflow.connect(inputnode, 'magnitude_files', bold_phase_unwrap, 'magnitude_file')
     workflow.connect(bold_phase_rescale, 'out_file', bold_phase_unwrap, 'phase_file')
 
-    output_node = pe.Node(niu.IdentityInterface(
+    outputnode = pe.Node(niu.IdentityInterface(
             fields=['unwrapped_phase_files']),
-        name='output_node')
+        name='outputnode')
     workflow.connect(bold_phase_unwrap, 'unwrapped_phase_file',
-                     output_node, 'unwrapped_phase_files')
+                     outputnode, 'unwrapped_phase_files')
     return workflow
 
 
@@ -130,7 +127,7 @@ def init_single_subject_wf(name, output_dir,
     workflow = pe.Workflow(name=name)
 
     # name the nodes
-    input_node = pe.Node(niu.IdentityInterface(fields=['bold_mag_files',
+    inputnode = pe.Node(niu.IdentityInterface(fields=['bold_mag_files',
                                                        'bold_mag_metadata',
                                                        'bold_phase_files',
                                                        'bold_phase_metadata',
@@ -147,7 +144,7 @@ def init_single_subject_wf(name, output_dir,
                                                        't1w_files',
                                                        't1w_metadata',
                                                        ]),
-                         name='input_node',
+                         name='inputnode',
                          iterables=[('bold_mag_files', bold_mag_files),
                                     ('bold_mag_metadata', bold_mag_metadata),
                                     ('bold_phase_files', bold_phase_files),
@@ -163,52 +160,61 @@ def init_single_subject_wf(name, output_dir,
                                     ('fmap_phasediff_files', fmap_phasediff_files),
                                     ('fmap_phasediff_metadata', fmap_phasediff_metadata)],
                          synchronize=True)
-    input_node.inputs.t1w_files = t1w_files
-    input_node.inputs.t1w_metadata = t1w_metadata
+    inputnode.inputs.t1w_files = t1w_files
+    inputnode.inputs.t1w_metadata = t1w_metadata
 
-    output_node = pe.Node(niu.IdentityInterface(fields=['preproc_bold_files',
+    outputnode = pe.Node(niu.IdentityInterface(fields=['preproc_bold_files',
                                                         'preproc_phase_files',
                                                         'motion_parameters',
                                                         'normalized_sbref']),
-                          name='output_node')
+                          name='outputnode')
 
     # Generate GRE field maps
-    fmap_phdiff_wf = init_phdiff_wf(create_phasediff=False)
-    workflow.connect(input_node, 'fmap_phasediff_files', fmap_phdiff_wf, 'inputnode.phasediff')
-    workflow.connect(input_node, 'fmap_mag1_files', fmap_phdiff_wf, 'inputnode.magnitude')
-    workflow.connect(input_node, 'fmap_phasediff_metadata', fmap_phdiff_wf, 'inputnode.metadata')
+    fmap_phdiff_wf = init_phdiff_wf(name='fmap_phdiff_wf',
+                                    create_phasediff=False,
+                                    omp_nthreads=1,
+                                    fmap_bspline=None)
+    workflow.connect(inputnode, 'fmap_phasediff_files', fmap_phdiff_wf, 'inputnode.phasediff')
+    workflow.connect(inputnode, 'fmap_mag1_files', fmap_phdiff_wf, 'inputnode.magnitude')
+    workflow.connect(inputnode, 'fmap_phasediff_metadata', fmap_phdiff_wf, 'inputnode.metadata')
 
     # Generate single-band reference image-based field maps
-    sbref_phdiff_wf = init_phdiff_wf(create_phasediff=True)
-    workflow.connect(input_node, ('sbref_phase_files', pick_first),
+    sbref_phdiff_wf = init_phdiff_wf(name='sbref_phdiff_wf',
+                                     create_phasediff=True,
+                                     omp_nthreads=1,
+                                     fmap_bspline=None)
+    workflow.connect(inputnode, ('sbref_phase_files', pick_first),
                      sbref_phdiff_wf, 'inputnode.phase1')
-    workflow.connect(input_node, ('sbref_phase_files', pick_second),
+    workflow.connect(inputnode, ('sbref_phase_files', pick_second),
                      sbref_phdiff_wf, 'inputnode.phase2')
-    workflow.connect(input_node, ('sbref_mag_metadata', pick_first),
+    workflow.connect(inputnode, ('sbref_mag_files', pick_first),
                      sbref_phdiff_wf, 'inputnode.magnitude')
-    workflow.connect(input_node, ('sbref_phase_metadata', pick_first),
+    workflow.connect(inputnode, ('sbref_phase_metadata', pick_first),
                      sbref_phdiff_wf, 'inputnode.phase1_metadata')
-    workflow.connect(input_node, ('sbref_phase_metadata', pick_second),
+    workflow.connect(inputnode, ('sbref_phase_metadata', pick_second),
                      sbref_phdiff_wf, 'inputnode.phase2_metadata')
 
     # Generate dynamic field maps
-    bold_phdiff_wf = init_phdiff_wf(create_phasediff=True)
-    workflow.connect(input_node, ('bold_phase_files', pick_first),
+    bold_phdiff_wf = init_phdiff_wf(name='bold_phdiff_wf',
+                                    create_phasediff=True,
+                                    omp_nthreads=1,
+                                    fmap_bspline=None)
+    workflow.connect(inputnode, ('bold_phase_files', pick_first),
                      bold_phdiff_wf, 'inputnode.phase1')
-    workflow.connect(input_node, ('bold_phase_files', pick_second),
+    workflow.connect(inputnode, ('bold_phase_files', pick_second),
                      bold_phdiff_wf, 'inputnode.phase2')
-    workflow.connect(input_node, ('bold_mag_metadata', pick_first),
+    workflow.connect(inputnode, ('bold_mag_files', pick_first),
                      bold_phdiff_wf, 'inputnode.magnitude')
-    workflow.connect(input_node, ('bold_phase_metadata', pick_first),
+    workflow.connect(inputnode, ('bold_phase_metadata', pick_first),
                      bold_phdiff_wf, 'inputnode.phase1_metadata')
-    workflow.connect(input_node, ('bold_phase_metadata', pick_second),
+    workflow.connect(inputnode, ('bold_phase_metadata', pick_second),
                      bold_phdiff_wf, 'inputnode.phase2_metadata')
 
     # Process BOLD phase data
     bold_phase_wf = init_phase_processing_wf()
-    workflow.connect(input_node, 'bold_phase_files',
+    workflow.connect(inputnode, 'bold_phase_files',
                      bold_phase_wf, 'inputnode.phase_files')
-    workflow.connect(input_node, 'bold_mag_files',
+    workflow.connect(inputnode, 'bold_mag_files',
                      bold_phase_wf, 'inputnode.magnitude_files')
 
     # Unwrap single-band reference phase images
@@ -217,14 +223,14 @@ def init_single_subject_wf(name, output_dir,
         name='sbref_phase_rescale',
         iterfield=['phase_file'],
     )
-    workflow.connect(input_node, 'sbref_phase_files', sbref_phase_rescale, 'phase_file')
+    workflow.connect(inputnode, 'sbref_phase_files', sbref_phase_rescale, 'phase_file')
     sbref_phase_unwrap = pe.MapNode(
         interface=fsl.PRELUDE(),
         #interface=Function(['magnitude_file', 'phase_file'], ['unwrapped_phase_file'], fake_unwrap),
         name='sbref_phase_unwrap',
         iterfield=['magnitude_file', 'phase_file'],
     )
-    workflow.connect(input_node, 'sbref_mag_files',
+    workflow.connect(inputnode, 'sbref_mag_files',
                      sbref_phase_unwrap, 'magnitude_file')
     workflow.connect(sbref_phase_rescale, 'out_file',
                      sbref_phase_unwrap, 'phase_file')
@@ -235,7 +241,7 @@ def init_single_subject_wf(name, output_dir,
     )
     workflow.connect(sbref_phase_unwrap, 'unwrapped_phase_file',
                      sbref_phase_computeDifference, 'phase_files')
-    workflow.connect(input_node, 'sbref_phase_metadata',
+    workflow.connect(inputnode, 'sbref_phase_metadata',
                      sbref_phase_computeDifference, 'phase_metadata')
 
     # Perform motion correction for first echo only
@@ -243,8 +249,8 @@ def init_single_subject_wf(name, output_dir,
         interface=afni.Volreg(oned_matrix_save='temp.1D', outputtype='NIFTI_GZ'),
         name='bold_motionCorrection_estimate'
     )
-    workflow.connect(input_node, ('bold_mag_files', pick_first), bold_motionCorrection_estimate, 'in_file')
-    workflow.connect(input_node, ('sbref_mag_files', pick_first), bold_motionCorrection_estimate, 'basefile')
+    workflow.connect(inputnode, ('bold_mag_files', pick_first), bold_motionCorrection_estimate, 'in_file')
+    workflow.connect(inputnode, ('sbref_mag_files', pick_first), bold_motionCorrection_estimate, 'basefile')
 
     # Apply motion parameters to all echoes, for both magnitude and phase data
     bold_motionCorrection_applyMag = pe.MapNode(
@@ -253,8 +259,8 @@ def init_single_subject_wf(name, output_dir,
         iterfield=['in_file'],
     )
     workflow.connect(bold_motionCorrection_estimate, 'oned_matrix_save', bold_motionCorrection_applyMag, 'in_matrix')
-    workflow.connect(input_node, 'bold_mag_files', bold_motionCorrection_applyMag, 'in_file')
-    workflow.connect(input_node, ('sbref_mag_files', pick_first),
+    workflow.connect(inputnode, 'bold_mag_files', bold_motionCorrection_applyMag, 'in_file')
+    workflow.connect(inputnode, ('sbref_mag_files', pick_first),
                      bold_motionCorrection_applyMag, 'reference')
 
     bold_motionCorrection_applyPhase = pe.MapNode(
@@ -264,9 +270,9 @@ def init_single_subject_wf(name, output_dir,
     )
     workflow.connect(bold_motionCorrection_estimate, 'oned_matrix_save',
                      bold_motionCorrection_applyPhase, 'in_matrix')
-    workflow.connect(bold_phase_wf, 'unwrapped_phase_files',
+    workflow.connect(bold_phase_wf, 'outputnode.unwrapped_phase_files',
                      bold_motionCorrection_applyPhase, 'in_file')
-    workflow.connect(input_node, ('sbref_mag_files', pick_first),
+    workflow.connect(inputnode, ('sbref_mag_files', pick_first),
                      bold_motionCorrection_applyPhase, 'reference')
 
     # Perform slice timing correction on magnitude and phase data
@@ -275,7 +281,7 @@ def init_single_subject_wf(name, output_dir,
         name='bold_stc_getParams',
         iterfield=['metadata'],
     )
-    workflow.connect(input_node, 'bold_mag_metadata', bold_stc_getParams, 'metadata')
+    workflow.connect(inputnode, 'bold_mag_metadata', bold_stc_getParams, 'metadata')
 
     bold_magnitude_stc = pe.MapNode(
         interface=afni.TShift(outputtype='NIFTI_GZ'),
@@ -303,8 +309,8 @@ def init_single_subject_wf(name, output_dir,
         interface=afni.Allineate(out_matrix='sbref2anat.1D'),
         name='sbref2anat_estimate'
     )
-    workflow.connect(input_node, ('sbref_mag_files', pick_first), coreg_est, 'in_file')
-    workflow.connect(input_node, ('t1w_files', pick_first), coreg_est, 'reference')
+    workflow.connect(inputnode, ('sbref_mag_files', pick_first), coreg_est, 'in_file')
+    workflow.connect(inputnode, ('t1w_files', pick_first), coreg_est, 'reference')
 
     # Apply xform to mag data
     coreg_apply_mag = pe.MapNode(
@@ -314,7 +320,7 @@ def init_single_subject_wf(name, output_dir,
     )
     workflow.connect(coreg_est, 'out_matrix', coreg_apply_mag, 'in_matrix')
     workflow.connect(bold_magnitude_stc, 'out_file', coreg_apply_mag, 'in_file')
-    workflow.connect(input_node, ('sbref_mag_files', pick_first),
+    workflow.connect(inputnode, ('sbref_mag_files', pick_first),
                      coreg_apply_mag, 'reference')
 
     # Apply xform to phase data
@@ -325,7 +331,7 @@ def init_single_subject_wf(name, output_dir,
     )
     workflow.connect(coreg_est, 'out_matrix', coreg_apply_phase, 'in_matrix')
     workflow.connect(bold_phase_stc, 'out_file', coreg_apply_phase, 'in_file')
-    workflow.connect(input_node, ('sbref_mag_files', pick_first),
+    workflow.connect(inputnode, ('sbref_mag_files', pick_first),
                      coreg_apply_phase, 'reference')
 
     # Apply xform to phase data
@@ -335,13 +341,13 @@ def init_single_subject_wf(name, output_dir,
         iterfield=['in_file'],
     )
     workflow.connect(coreg_est, 'out_matrix', coreg_apply_sbref, 'in_matrix')
-    workflow.connect(input_node, 'sbref_mag_files', coreg_apply_sbref, 'in_file')
-    workflow.connect(input_node, ('sbref_mag_files', pick_first),
+    workflow.connect(inputnode, 'sbref_mag_files', coreg_apply_sbref, 'in_file')
+    workflow.connect(inputnode, ('sbref_mag_files', pick_first),
                      coreg_apply_sbref, 'reference')
 
     # Collect outputs
-    workflow.connect(coreg_est, 'out_file', output_node, 'normalized_sbref')
-    workflow.connect(bold_motionCorrection_estimate, 'oned_file', output_node, 'motion_parameters')
-    workflow.connect(coreg_apply_mag, 'out_file', output_node, 'preproc_bold_files')
-    workflow.connect(coreg_apply_phase, 'out_file', output_node, 'preproc_phase_files')
+    workflow.connect(coreg_est, 'out_file', outputnode, 'normalized_sbref')
+    workflow.connect(bold_motionCorrection_estimate, 'oned_file', outputnode, 'motion_parameters')
+    workflow.connect(coreg_apply_mag, 'out_file', outputnode, 'preproc_bold_files')
+    workflow.connect(coreg_apply_phase, 'out_file', outputnode, 'preproc_phase_files')
     return workflow

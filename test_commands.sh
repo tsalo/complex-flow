@@ -9,13 +9,13 @@ docker run -ti --rm \
   -v /Users/tsalo/Documents/complex-outputs:/outputs \
   -v /Users/tsalo/Documents/complex-work:/work \
   -v /Users/tsalo/Documents/freesurfer_license.txt:/freesurfer_license.txt \
-  -v /Users/tsalo/Documents/nbc/diva-project:/home/diva-project \
+  -v /Users/tsalo/Documents/tsalo/complex-flow:/home/complex-flow \
   --entrypoint=bash \
   fmriprep/test:latest
 
 # Run workflow
-#pip install git+https://github.com/nipy/nipype
 pip install git+https://github.com/bids-standard/pybids
-cd /home/diva-project
+pip install git+https://github.com/mattcieslak/sdcflows@phase1phase2
+cd /home/complex-flow
 python run.py /bids_dataset /outputs --participant-label TEST1 \
   -w /work --nthreads 1 --graph
