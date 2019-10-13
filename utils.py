@@ -11,6 +11,7 @@ def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file
     import numpy as np
     import nibabel as nib
     import os.path as op
+    from nipype.utils.filemanip import split_filename
 
     magnitude_img = nib.load(magnitude_file)
     phase_data = nib.load(phase_file).get_data()
@@ -28,9 +29,11 @@ def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file
     kspace_real_img = nib.Nifti1Image(kspace_real_data, magnitude_img.affine, magnitude_img.header)
     kspace_imag_img = nib.Nifti1Image(kspace_imag_data, magnitude_img.affine, magnitude_img.header)
     if out_real_file is None:
-        out_real_file = out_file = op.abspath('complexReal_{}'.format(op.basename(magnitude_file)))
+        _, base, _ = split_filename(magnitude_file)
+        out_real_file = op.abspath(base + '_real.nii.gz')
     if out_imag_file is None:
-        out_imag_file = out_file = op.abspath('complexImag_{}'.format(op.basename(magnitude_file)))
+        _, base, _ = split_filename(magnitude_file)
+        out_imag_file = op.abspath(base + '_imag.nii.gz')
     kspace_real_img.to_filename(out_real_file)
     kspace_imag_img.to_filename(out_imag_file)
     return out_real_file, out_imag_file
@@ -61,6 +64,7 @@ def convert_to_radians(phase_file, out_file=None):
     import os.path as op
     import numpy as np
     import nibabel as nib
+    from nipype.utils.filemanip import split_filename
 
     img = nib.load(phase_file)
     phase_data = img.get_data()
@@ -70,7 +74,8 @@ def convert_to_radians(phase_file, out_file=None):
     rad_data = 2 * np.pi * scaled
     out_img = nib.Nifti1Image(rad_data, img.affine, img.header)
     if out_file is None:
-        out_file = op.abspath('rescaled_{}'.format(op.basename(phase_file)))
+        _, base, _ = split_filename(phase_file)
+        out_file = op.abspath(base + '_rescaled.nii.gz')
     out_img.to_filename(out_file)
     return out_file
 
@@ -90,6 +95,7 @@ def compute_phasediff(phase_files, phase_metadata, out_file=None):
     import os.path as op
     import numpy as np
     import nibabel as nib
+    from nipype.utils.filemanip import split_filename
 
     # Select first two echoes
     phase_files = phase_files[:2]
@@ -100,7 +106,8 @@ def compute_phasediff(phase_files, phase_metadata, out_file=None):
     data = 1000. * (data[1] - data[0]) / te_diff
     out_img = nib.Nifti1Image(data, imgs[0].affine, imgs[0].header)
     if out_file is None:
-        out_file = op.abspath('phasediffed_{}'.format(op.basename(phase_files[0])))
+        _, base, _ = split_filename(phase_files[0])
+        out_file = op.abspath(base + '_phasediff.nii.gz')
     out_img.to_filename(out_file)
     return out_file
 

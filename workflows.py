@@ -12,6 +12,7 @@ from bids.layout import BIDSLayout
 
 from niworkflows.interfaces.itk import MCFLIRT2ITK
 from niworkflows.interfaces.itk import MultiApplyTransforms
+from niworkflows.func.util import init_skullstrip_bold_wf
 
 import nipype.pipeline.engine as pe  # pypeline engine
 from nipype.interfaces import fsl, afni, freesurfer
@@ -21,6 +22,7 @@ import nipype.interfaces.io as nio
 from niflow.nipype1.workflows.dmri.fsl.utils import siemens2rads, rads2radsec
 # Currently requires https://github.com/mattcieslak/sdcflows/tree/phase1phase2
 from sdcflows.workflows.phdiff import init_phdiff_wf
+from sdcflows.workflows.unwarp import init_sdc_unwarp_wf
 
 from utils import *
 
@@ -43,9 +45,11 @@ def init_phase_processing_wf(name='phase_processing_wf'):
         iterfield=['phase_file'],
     )
     workflow.connect(inputnode, 'phase_files', bold_phase_rescale, 'phase_file')
+
+    # Default for num_partitions is 8
+    # https://github.com/mshvartsman/FSL/blob/7aa2932949129f5c61af912ea677d4dbda843895/src/fugue/prelude.cc#L98
     bold_phase_unwrap = pe.MapNode(
         interface=fsl.PRELUDE(),
-        #interface=Function(['magnitude_file', 'phase_file'], ['unwrapped_phase_file'], fake_unwrap),
         name='bold_phase_unwrap',
         iterfield=['magnitude_file', 'phase_file'],
     )
@@ -128,46 +132,46 @@ def init_single_subject_wf(name, output_dir,
 
     # name the nodes
     inputnode = pe.Node(niu.IdentityInterface(fields=['bold_mag_files',
-                                                       'bold_mag_metadata',
-                                                       'bold_phase_files',
-                                                       'bold_phase_metadata',
-                                                       'sbref_mag_files',
-                                                       'sbref_mag_metadata',
-                                                       'sbref_phase_files',
-                                                       'sbref_phase_metadata',
-                                                       'fmap_mag1_files',
-                                                       'fmap_mag1_metadata',
-                                                       'fmap_mag2_files',
-                                                       'fmap_mag2_metadata',
-                                                       'fmap_phasediff_files',
-                                                       'fmap_phasediff_metadata',
-                                                       't1w_files',
-                                                       't1w_metadata',
-                                                       ]),
-                         name='inputnode',
-                         iterables=[('bold_mag_files', bold_mag_files),
-                                    ('bold_mag_metadata', bold_mag_metadata),
-                                    ('bold_phase_files', bold_phase_files),
-                                    ('bold_phase_metadata', bold_phase_metadata),
-                                    ('sbref_mag_files', sbref_mag_files),
-                                    ('sbref_mag_metadata', sbref_mag_metadata),
-                                    ('sbref_phase_files', sbref_phase_files),
-                                    ('sbref_phase_metadata', sbref_phase_metadata),
-                                    ('fmap_mag1_files', fmap_mag1_files),
-                                    ('fmap_mag1_metadata', fmap_mag1_metadata),
-                                    ('fmap_mag2_files', fmap_mag2_files),
-                                    ('fmap_mag2_metadata', fmap_mag2_metadata),
-                                    ('fmap_phasediff_files', fmap_phasediff_files),
-                                    ('fmap_phasediff_metadata', fmap_phasediff_metadata)],
-                         synchronize=True)
+                                                      'bold_mag_metadata',
+                                                      'bold_phase_files',
+                                                      'bold_phase_metadata',
+                                                      'sbref_mag_files',
+                                                      'sbref_mag_metadata',
+                                                      'sbref_phase_files',
+                                                      'sbref_phase_metadata',
+                                                      'fmap_mag1_files',
+                                                      'fmap_mag1_metadata',
+                                                      'fmap_mag2_files',
+                                                      'fmap_mag2_metadata',
+                                                      'fmap_phasediff_files',
+                                                      'fmap_phasediff_metadata',
+                                                      't1w_files',
+                                                      't1w_metadata',
+                                                      ]),
+                        name='inputnode',
+                        iterables=[('bold_mag_files', bold_mag_files),
+                                   ('bold_mag_metadata', bold_mag_metadata),
+                                   ('bold_phase_files', bold_phase_files),
+                                   ('bold_phase_metadata', bold_phase_metadata),
+                                   ('sbref_mag_files', sbref_mag_files),
+                                   ('sbref_mag_metadata', sbref_mag_metadata),
+                                   ('sbref_phase_files', sbref_phase_files),
+                                   ('sbref_phase_metadata', sbref_phase_metadata),
+                                   ('fmap_mag1_files', fmap_mag1_files),
+                                   ('fmap_mag1_metadata', fmap_mag1_metadata),
+                                   ('fmap_mag2_files', fmap_mag2_files),
+                                   ('fmap_mag2_metadata', fmap_mag2_metadata),
+                                   ('fmap_phasediff_files', fmap_phasediff_files),
+                                   ('fmap_phasediff_metadata', fmap_phasediff_metadata)],
+                        synchronize=True)
     inputnode.inputs.t1w_files = t1w_files
     inputnode.inputs.t1w_metadata = t1w_metadata
 
     outputnode = pe.Node(niu.IdentityInterface(fields=['preproc_bold_files',
-                                                        'preproc_phase_files',
-                                                        'motion_parameters',
-                                                        'normalized_sbref']),
-                          name='outputnode')
+                                                       'preproc_phase_files',
+                                                       'motion_parameters',
+                                                       'normalized_sbref']),
+                         name='outputnode')
 
     # Generate GRE field maps
     fmap_phdiff_wf = init_phdiff_wf(name='fmap_phdiff_wf',
@@ -195,6 +199,20 @@ def init_single_subject_wf(name, output_dir,
                      sbref_phdiff_wf, 'inputnode.phase2_metadata')
 
     # Generate dynamic field maps
+    # It looks like we'll need to split the magnitude/phase data prior when
+    # applying the fieldmap unwarping *and* when skullstripping the magnitude
+    # data
+    bold_mag_splitter = pe.MapNode(
+        interface=fsl.Split(dimension='t'),
+        iterfield=['in_file'])
+    bold_phase_splitter = pe.MapNode(
+        interface=fsl.Split(dimension='t'),
+        iterfield=['in_file'])
+    meepi_echos = boldbuffer.clone(name='meepi_echos')
+    meepi_echos.iterables = ('bold_file', bold_file)
+    workflow.connect([
+        (meepi_echos, bold_stc_wf, [('bold_file', 'inputnode.bold_file')])])
+
     bold_phdiff_wf = init_phdiff_wf(name='bold_phdiff_wf',
                                     create_phasediff=True,
                                     omp_nthreads=1,
@@ -210,39 +228,52 @@ def init_single_subject_wf(name, output_dir,
     workflow.connect(inputnode, ('bold_phase_metadata', pick_second),
                      bold_phdiff_wf, 'inputnode.phase2_metadata')
 
+    bold_mag_splitter = pe.MapNode(
+        interface=fsl.Split(dimension='t'),
+        iterfield=['in_file'])
+    # Enhance and skullstrip BOLD data
+    bold_skullstrip_wf = init_skullstrip_bold_wf(name='bold_skullstrip_wf')
+    workflow.connect(inputnode, ('bold_mag_files', pick_first),
+                     bold_skullstrip_wf, 'inputnode.in_file')
+
+    bold_skullstrip_apply = pe.MapNode(
+        fsl.ApplyMask(),
+        name='bold_skullstrip_apply',
+        iterfield=['in_file'],
+    )
+    workflow.connect(inputnode, 'bold_mag_files',
+                     bold_skullstrip_apply, 'in_file')
+
+    # Unwarp BOLD data
+    bold_unwarp_wf = init_sdc_unwarp_wf(name='bold_unwarp_wf',
+                                        debug=False,
+                                        omp_nthreads=1,
+                                        fmap_demean=True)
+    first_echo_metadata = pe.Node(interface=Function(['input'], ['output'], pick_first),
+                                  name='first_echo_metadata')
+    workflow.connect(bold_phdiff_wf, 'outputnode.fmap',
+                     bold_unwarp_wf, 'inputnode.fmap')
+    workflow.connect(bold_phdiff_wf, 'outputnode.fmap_mask',
+                     bold_unwarp_wf, 'inputnode.fmap_mask')
+    workflow.connect(bold_phdiff_wf, 'outputnode.fmap_ref',
+                     bold_unwarp_wf, 'inputnode.fmap_ref')
+    workflow.connect(inputnode, ('bold_mag_files', pick_first),
+                     bold_unwarp_wf, 'inputnode.in_reference')
+    workflow.connect(bold_skullstrip_apply, ('out_file', pick_first),
+                     bold_unwarp_wf, 'inputnode.in_reference_brain')
+    workflow.connect(bold_skullstrip_wf, ('outputnode.mask_file', pick_first),
+                     bold_unwarp_wf, 'inputnode.in_mask')
+    workflow.connect(inputnode, 'bold_mag_metadata',
+                     first_echo_metadata, 'input')
+    workflow.connect(first_echo_metadata, 'output',
+                     bold_unwarp_wf, 'inputnode.metadata')
+
     # Process BOLD phase data
     bold_phase_wf = init_phase_processing_wf()
     workflow.connect(inputnode, 'bold_phase_files',
                      bold_phase_wf, 'inputnode.phase_files')
     workflow.connect(inputnode, 'bold_mag_files',
                      bold_phase_wf, 'inputnode.magnitude_files')
-
-    # Unwrap single-band reference phase images
-    sbref_phase_rescale = pe.MapNode(
-        interface=Function(['phase_file'], ['out_file'], convert_to_radians),
-        name='sbref_phase_rescale',
-        iterfield=['phase_file'],
-    )
-    workflow.connect(inputnode, 'sbref_phase_files', sbref_phase_rescale, 'phase_file')
-    sbref_phase_unwrap = pe.MapNode(
-        interface=fsl.PRELUDE(),
-        #interface=Function(['magnitude_file', 'phase_file'], ['unwrapped_phase_file'], fake_unwrap),
-        name='sbref_phase_unwrap',
-        iterfield=['magnitude_file', 'phase_file'],
-    )
-    workflow.connect(inputnode, 'sbref_mag_files',
-                     sbref_phase_unwrap, 'magnitude_file')
-    workflow.connect(sbref_phase_rescale, 'out_file',
-                     sbref_phase_unwrap, 'phase_file')
-    sbref_phase_computeDifference = pe.Node(
-        interface=Function(['phase_files', 'phase_metadata'], ['out_file'], compute_phasediff),
-        name='sbref_phase_computeDifference',
-        iterfield=['phase_files', 'phase_metadata'],
-    )
-    workflow.connect(sbref_phase_unwrap, 'unwrapped_phase_file',
-                     sbref_phase_computeDifference, 'phase_files')
-    workflow.connect(inputnode, 'sbref_phase_metadata',
-                     sbref_phase_computeDifference, 'phase_metadata')
 
     # Perform motion correction for first echo only
     bold_motionCorrection_estimate = pe.Node(
