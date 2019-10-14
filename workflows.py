@@ -25,9 +25,22 @@ For the BOLD data:
 3. Apply field maps to all echoes (both magnitude and processed phase)
 4. Estimate motion correction transform using unwarped SBRef's first echo as
    the reference image and the unwarped BOLD first echo as the moving data.
-5. Concatenate unwarping, motion correction, coregistration, and normalization
-   transforms.
-6. Apply concatenated transforms to all echoes (both magnitude and processed phase)
+5. Perform slice timing correction on motion-corrected and unwarped magnitude
+   and phase data.
+6. Concatenate unwarping and motion correction transforms (pre-denoising/STC
+   transforms).
+7. Concatenate just coregistration and normalization transforms
+   (post-denoising/STC transforms).
+8. Apply concatenated pre-denoising transform to all echoes (both magnitude and
+   processed phase)
+
+Outputs:
+1. Preprocessed multi-echo magnitude data in native space
+2. Preprocessed multi-echo phase data in native space
+3. Pre-denoising transform
+4. Post-denoising transform
+5. Preprocessed multi-echo single-band reference data in native space
+6. Motion parameters
 """
 import os
 from copy import deepcopy
