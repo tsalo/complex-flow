@@ -228,14 +228,17 @@ def init_single_subject_wf(name, output_dir,
     workflow.connect(inputnode, ('bold_phase_metadata', pick_second),
                      bold_phdiff_wf, 'inputnode.phase2_metadata')
 
+    # Here, we need to split the list of 4D files into a list of lists of 3D files
     bold_mag_splitter = pe.MapNode(
         interface=fsl.Split(dimension='t'),
         iterfield=['in_file'])
-    # Enhance and skullstrip BOLD data
+    # Skullstrip BOLD files on a volume-wise basis
+    # Need to feed in 3D files from first echo
     bold_skullstrip_wf = init_skullstrip_bold_wf(name='bold_skullstrip_wf')
     workflow.connect(inputnode, ('bold_mag_files', pick_first),
                      bold_skullstrip_wf, 'inputnode.in_file')
 
+    # Apply volume-wise brain masks to corresponding volumes from all echoes
     bold_skullstrip_apply = pe.MapNode(
         fsl.ApplyMask(),
         name='bold_skullstrip_apply',
@@ -245,6 +248,8 @@ def init_single_subject_wf(name, output_dir,
                      bold_skullstrip_apply, 'in_file')
 
     # Unwarp BOLD data
+    # Must be applied to each volume and each echo independently
+    # Will also need to be done to the phase data, post preproc but pre-MC
     bold_unwarp_wf = init_sdc_unwarp_wf(name='bold_unwarp_wf',
                                         debug=False,
                                         omp_nthreads=1,
