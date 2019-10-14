@@ -2,6 +2,32 @@
 Perform minimal preprocessing.
 
 Get functions appear to be working. They require pybids>='0.9.4' (unreleased)
+
+A brief description of the steps:
+For the T1w images:
+1. Estimate normalization transform to MNI space from T1w space.
+
+For the GRE field map images:
+1. Generate field map with sdcflows. Unknown if this will be used or not.
+
+For the single-band reference images:
+1. Process phase data (rescale and unwrap)
+2. Generate field map for SBRef from first two echoes' magnitude and phase data
+   (with sdcflows). This is a single image, so it should be easy(ish).
+3. Apply field map to all echoes of SBRef (both magnitude and processed phase).
+4. Estimate coregistration transform to T1w space using unwarped SBRef from
+   first echo.
+
+For the BOLD data:
+1. Process phase data (rescale and unwrap)
+2. Generate volume-specific field maps from first two echoes' magnitude and
+   phase data (with sdcflows)
+3. Apply field maps to all echoes (both magnitude and processed phase)
+4. Estimate motion correction transform using unwarped SBRef's first echo as
+   the reference image and the unwarped BOLD first echo as the moving data.
+5. Concatenate unwarping, motion correction, coregistration, and normalization
+   transforms.
+6. Apply concatenated transforms to all echoes (both magnitude and processed phase)
 """
 import os
 from copy import deepcopy
