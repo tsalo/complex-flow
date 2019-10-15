@@ -3,6 +3,18 @@ Miscellaneous utility functions.
 """
 
 
+def copy_files(in_file, output_dir):
+    from os import mkdir
+    import os.path as op
+    from shutil import copyfile
+    fn = op.basename(in_file)
+    out_file = op.join(output_dir, fn)
+    if not op.isdir(output_dir):
+        mkdir(output_dir)
+    copyfile(in_file, out_file)
+    return out_file
+
+
 def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file=None):
     """
     Convert raw magnitude and phase data into effective k-space data, split
