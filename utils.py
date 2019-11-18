@@ -15,6 +15,14 @@ def copy_files(in_file, output_dir):
     return out_file
 
 
+def get_motpar_name(source_file):
+    import os.path as op
+    from nipype.utils.filemanip import split_filename
+    _, base, _ = split_filename(source_file)
+    out_file = op.abspath(base + '_motpars.1D')
+    return out_file
+
+
 def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file=None):
     """
     Convert raw magnitude and phase data into effective k-space data, split
@@ -222,6 +230,12 @@ def collect_data(layout, participant_label, ses=None, task=None, run=None):
         'suffix': 'T1w',
         'extension': ['nii', 'nii.gz'],
     }
+    t2w_query = {
+        'subject': participant_label,
+        'datatype': 'anat',
+        'suffix': 'T2w',
+        'extension': ['nii', 'nii.gz'],
+    }
 
     if task:
         bold_query['task'] = task
@@ -235,11 +249,8 @@ def collect_data(layout, participant_label, ses=None, task=None, run=None):
     bold_phase_files = [[get_phase(layout, f) for f in r] for r in bold_mag_files]
     sbref_mag_files = [[get_sbref(layout, f, reconstruction='magnitude') for f in r] for r in bold_mag_files]
     sbref_phase_files = [[get_sbref(layout, f, reconstruction='phase') for f in r] for r in bold_mag_files]
-    fmaps = [layout.get_fieldmap(f.path) for f in first_echo_files]
-    fmap_mag1_files = [d['magnitude1'] for d in fmaps]
-    fmap_mag2_files = [d['magnitude2'] for d in fmaps]
-    fmap_phasediff_files = [d['phasediff'] for d in fmaps]
     t1w_files = layout.get(**t1w_query)
+    t2w_files = layout.get(**t2w_query)
 
     # Convert BIDS files to strings
     bold_mag_files = [[f.path for f in r] for r in bold_mag_files]
@@ -247,15 +258,14 @@ def collect_data(layout, participant_label, ses=None, task=None, run=None):
     sbref_mag_files = [[f.path for f in r] for r in sbref_mag_files]
     sbref_phase_files = [[f.path for f in r] for r in sbref_phase_files]
     t1w_files = [f.path for f in t1w_files]
+    t2w_files = [f.path for f in t2w_files]
 
     bold_mag_metadata = [[layout.get_metadata(f) for f in r] for r in bold_mag_files]
     bold_phase_metadata = [[layout.get_metadata(f) for f in r] for r in bold_phase_files]
     sbref_mag_metadata = [[layout.get_metadata(f) for f in r] for r in sbref_mag_files]
     sbref_phase_metadata = [[layout.get_metadata(f) for f in r] for r in sbref_phase_files]
-    fmap_mag1_metadata = [layout.get_metadata(f) for f in fmap_mag1_files]
-    fmap_mag2_metadata = [layout.get_metadata(f) for f in fmap_mag2_files]
-    fmap_phasediff_metadata = [layout.get_metadata(f) for f in fmap_phasediff_files]
     t1w_metadata = [layout.get_metadata(f) for f in t1w_files]
+    t2w_metadata = [layout.get_metadata(f) for f in t2w_files]
 
     # Compile into dictionary
     data = {'bold_mag_files': bold_mag_files,
@@ -266,13 +276,9 @@ def collect_data(layout, participant_label, ses=None, task=None, run=None):
             'sbref_mag_metadata': sbref_mag_metadata,
             'sbref_phase_files': sbref_phase_files,
             'sbref_phase_metadata': sbref_phase_metadata,
-            'fmap_mag1_files': fmap_mag1_files,
-            'fmap_mag1_metadata': fmap_mag1_metadata,
-            'fmap_mag2_files': fmap_mag2_files,
-            'fmap_mag2_metadata': fmap_mag2_metadata,
-            'fmap_phasediff_files': fmap_phasediff_files,
-            'fmap_phasediff_metadata': fmap_phasediff_metadata,
             't1w_files': t1w_files,
             't1w_metadata': t1w_metadata,
+            't2w_files': t2w_files,
+            't2w_metadata': t2w_metadata,
             }
     return data
