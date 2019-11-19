@@ -59,13 +59,14 @@ from nipype.interfaces import utility as niu
 from nipype.interfaces.utility import Function
 import nipype.interfaces.io as nio
 from niflow.nipype1.workflows.dmri.fsl.utils import siemens2rads, rads2radsec
+
 # Currently requires https://github.com/mattcieslak/sdcflows/tree/phase1phase2
 from phaseprep.workflows import create_preprocess_phase_wf
 
 from utils import *
 
 
-def init_phase_processing_wf(name='phase_processing_wf'):
+def init_phase_processing_wf(name="phase_processing_wf"):
     """
     A workflow for processing (rescaling + unwrapping) of phase data.
     Designed specifically for distortion correction
@@ -73,32 +74,35 @@ def init_phase_processing_wf(name='phase_processing_wf'):
     workflow = pe.Workflow(name=name)
 
     # name the nodes
-    inputnode = pe.Node(niu.IdentityInterface(
-            fields=['magnitude_files',
-                    'phase_files']),
-        name='inputnode')
+    inputnode = pe.Node(
+        niu.IdentityInterface(fields=["magnitude_files", "phase_files"]),
+        name="inputnode",
+    )
 
     bold_phase_rescale = pe.MapNode(
-        interface=Function(['phase_file'], ['out_file'], convert_to_radians),
-        name='bold_phase_rescale',
-        iterfield=['phase_file'],
+        interface=Function(["phase_file"], ["out_file"], convert_to_radians),
+        name="bold_phase_rescale",
+        iterfield=["phase_file"],
     )
-    workflow.connect(inputnode, 'phase_files', bold_phase_rescale, 'phase_file')
+    workflow.connect(inputnode, "phase_files", bold_phase_rescale, "phase_file")
 
     # Default for num_partitions is 8
     # https://github.com/mshvartsman/FSL/blob/7aa2932949129f5c61af912ea677d4dbda843895/src/fugue/prelude.cc#L98
     bold_phase_unwrap = pe.MapNode(
-        interface=Function(['magnitude_file', 'phase_file'], ['unwrapped_phase_file'], fake_unwrap),
+        interface=Function(
+            ["magnitude_file", "phase_file"], ["unwrapped_phase_file"], fake_unwrap
+        ),
         # interface=fsl.PRELUDE(),
-        name='bold_phase_unwrap',
-        iterfield=['magnitude_file', 'phase_file'],
+        name="bold_phase_unwrap",
+        iterfield=["magnitude_file", "phase_file"],
     )
-    workflow.connect(inputnode, 'magnitude_files', bold_phase_unwrap, 'magnitude_file')
-    workflow.connect(bold_phase_rescale, 'out_file', bold_phase_unwrap, 'phase_file')
+    workflow.connect(inputnode, "magnitude_files", bold_phase_unwrap, "magnitude_file")
+    workflow.connect(bold_phase_rescale, "out_file", bold_phase_unwrap, "phase_file")
 
-    outputnode = pe.Node(niu.IdentityInterface(
-            fields=['unwrapped_phase_files']),
-        name='outputnode')
-    workflow.connect(bold_phase_unwrap, 'unwrapped_phase_file',
-                     outputnode, 'unwrapped_phase_files')
+    outputnode = pe.Node(
+        niu.IdentityInterface(fields=["unwrapped_phase_files"]), name="outputnode"
+    )
+    workflow.connect(
+        bold_phase_unwrap, "unwrapped_phase_file", outputnode, "unwrapped_phase_files"
+    )
     return workflow
