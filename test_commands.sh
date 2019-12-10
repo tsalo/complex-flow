@@ -5,28 +5,25 @@
 
 # Run the Docker image
 docker run -ti --rm \
-  -v /Users/tsalo/Documents/heudiconv-outputs-reproin:/bids_dataset:ro \
-  -v /Users/tsalo/Documents/complex-outputs:/outputs \
-  -v /Users/tsalo/Documents/complex-work:/work \
+  -v /Users/tsalo/Documents/dset-pilot-reduced:/bids_dataset:ro \
+  -v /Users/tsalo/Documents/docma-outputs:/outputs \
+  -v /Users/tsalo/Documents/docma-work:/work \
   -v /Users/tsalo/Documents/freesurfer_license.txt:/freesurfer_license.txt \
   -v /Users/tsalo/Documents/tsalo/complex-flow:/home/complex-flow \
   -v /Users/tsalo/Documents/tsalo/sdcflows:/home/sdcflows \
-  -v /Users/tsalo/Documents/tsalo/phaseprep:/home/phaseprep \
   --entrypoint=bash \
-  fmriprep/test:latest
+  poldracklab/sdcflows:latest
 
 # Run workflow
 pip install niflow-nipype1-workflows
 pip install git+https://github.com/bids-standard/pybids
-#pip install git+https://github.com/mattcieslak/sdcflows@phase1phase2
 pip uninstall sdcflows -y
 cd /home/sdcflows
 python setup.py develop
-cd /home/phaseprep
-python setup.py develop
 cd /home/complex-flow
 python run.py /bids_dataset /outputs --participant-label PILOT \
-  -w /work --nthreads 1 --graph
+  --task-label localizerDetection \
+  -w /work --nthreads 2 --graph
 
 docker run -ti --rm \
   -v /Users/tsalo/Documents/dset-for-openneuro:/bids_dataset:ro \
@@ -37,4 +34,4 @@ docker run -ti --rm \
   --entrypoint=bash \
   fmriprep/test:latest
 cd /home/complex-flow
-python sandbox.py
+python test_docma.py

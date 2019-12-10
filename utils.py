@@ -21,7 +21,7 @@ def get_motpar_name(source_file):
     from nipype.utils.filemanip import split_filename
 
     _, base, _ = split_filename(source_file)
-    out_file = op.abspath(base + "_motpars.1D")
+    out_file = op.abspath(base + '_motpars.1D')
     return out_file
 
 
@@ -56,10 +56,10 @@ def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file
     )
     if out_real_file is None:
         _, base, _ = split_filename(magnitude_file)
-        out_real_file = op.abspath(base + "_real.nii.gz")
+        out_real_file = op.abspath(base + '_real.nii.gz')
     if out_imag_file is None:
         _, base, _ = split_filename(magnitude_file)
-        out_imag_file = op.abspath(base + "_imag.nii.gz")
+        out_imag_file = op.abspath(base + '_imag.nii.gz')
     kspace_real_img.to_filename(out_real_file)
     kspace_imag_img.to_filename(out_imag_file)
     return out_real_file, out_imag_file
@@ -101,7 +101,7 @@ def convert_to_radians(phase_file, out_file=None):
     out_img = nib.Nifti1Image(rad_data, img.affine, img.header)
     if out_file is None:
         _, base, _ = split_filename(phase_file)
-        out_file = op.abspath(base + "_rescaled.nii.gz")
+        out_file = op.abspath(base + '_rescaled.nii.gz')
     out_img.to_filename(out_file)
     return out_file
 
@@ -110,7 +110,7 @@ def get_fmap_tediff(metadata):
     """
     Get difference in field map phase images' echo times.
     """
-    delta_te = metadata["EchoTime2"] - metadata["EchoTime1"]
+    delta_te = metadata['EchoTime2'] - metadata['EchoTime1']
     return delta_te
 
 
@@ -128,12 +128,12 @@ def compute_phasediff(phase_files, phase_metadata, out_file=None):
     phase_metadata = phase_metadata[:2]
     imgs = [nib.load(pf) for pf in phase_files]
     data = [img.get_data() for img in imgs]
-    te_diff = 1000.0 * (phase_metadata[1]["EchoTime"] - phase_metadata[0]["EchoTime"])
+    te_diff = 1000.0 * (phase_metadata[1]['EchoTime'] - phase_metadata[0]['EchoTime'])
     data = 1000.0 * (data[1] - data[0]) / te_diff
     out_img = nib.Nifti1Image(data, imgs[0].affine, imgs[0].header)
     if out_file is None:
         _, base, _ = split_filename(phase_files[0])
-        out_file = op.abspath(base + "_phasediff.nii.gz")
+        out_file = op.abspath(base + '_phasediff.nii.gz')
     out_img.to_filename(out_file)
     return out_file
 
@@ -151,7 +151,7 @@ def get_slice_timing(metadata):
     """
     Get slice timing information (in seconds) from metadata dictionary.
     """
-    return metadata["SliceTiming"]
+    return metadata['SliceTiming']
 
 
 def pick_first(func):
@@ -179,7 +179,7 @@ def get_other_echoes(layout, func_obj):
     Get full set of multi-echo fMRI files associated with one of the files.
     """
     entity_dict = func_obj.get_entities().copy()
-    entity_dict.pop("echo")
+    entity_dict.pop('echo')
     files = []
     for echo in sorted(layout.get_echoes(**entity_dict)):
         bold_mag_files = layout.get(echo=echo, **entity_dict)
@@ -193,8 +193,8 @@ def get_phase(layout, func_obj):
     Get phase file associated with a given BOLD file.
     """
     entity_dict = func_obj.get_entities().copy()
-    entity_dict.pop("suffix")
-    files = layout.get(suffix="phase", **entity_dict)
+    entity_dict.pop('suffix')
+    files = layout.get(suffix='phase', **entity_dict)
     assert len(files) <= 1
     if len(files) == 0:
         return None
@@ -203,13 +203,13 @@ def get_phase(layout, func_obj):
     return file_
 
 
-def get_sbref(layout, func_obj, reconstruction="magnitude"):
+def get_sbref(layout, func_obj, reconstruction='magnitude'):
     """
     Get single-band reference image associated with a functional run.
     """
     entity_dict = func_obj.get_entities().copy()
-    entity_dict.pop("suffix")
-    files = layout.get(suffix="sbref", reconstruction=reconstruction, **entity_dict)
+    entity_dict.pop('suffix')
+    files = layout.get(suffix='sbref', reconstruction=reconstruction, **entity_dict)
     assert len(files) <= 1
     if len(files) == 0:
         return None
@@ -224,41 +224,41 @@ def collect_data(layout, participant_label, ses=None, task=None, run=None):
     """
     # get all the preprocessed fmri images.
     bold_query = {
-        "subject": participant_label,
-        "datatype": "func",
-        "suffix": "bold",
-        "extension": ["nii", "nii.gz"],
-        "echo": 1,
+        'subject': participant_label,
+        'datatype': 'func',
+        'suffix': 'bold',
+        'extension': ['nii', 'nii.gz'],
+        'echo': 1,
     }
     t1w_query = {
-        "subject": participant_label,
-        "datatype": "anat",
-        "suffix": "T1w",
-        "extension": ["nii", "nii.gz"],
+        'subject': participant_label,
+        'datatype': 'anat',
+        'suffix': 'T1w',
+        'extension': ['nii', 'nii.gz'],
     }
     t2w_query = {
-        "subject": participant_label,
-        "datatype": "anat",
-        "suffix": "T2w",
-        "extension": ["nii", "nii.gz"],
+        'subject': participant_label,
+        'datatype': 'anat',
+        'suffix': 'T2w',
+        'extension': ['nii', 'nii.gz'],
     }
 
     if task:
-        bold_query["task"] = task
+        bold_query['task'] = task
     if run:
-        bold_query["run"] = run
+        bold_query['run'] = run
     if ses:
-        bold_query["session"] = ses
+        bold_query['session'] = ses
 
     first_echo_files = layout.get(**bold_query)
     bold_mag_files = [get_other_echoes(layout, f) for f in first_echo_files]
     bold_phase_files = [[get_phase(layout, f) for f in r] for r in bold_mag_files]
     sbref_mag_files = [
-        [get_sbref(layout, f, reconstruction="magnitude") for f in r]
+        [get_sbref(layout, f, reconstruction='magnitude') for f in r]
         for r in bold_mag_files
     ]
     sbref_phase_files = [
-        [get_sbref(layout, f, reconstruction="phase") for f in r]
+        [get_sbref(layout, f, reconstruction='phase') for f in r]
         for r in bold_mag_files
     ]
     t1w_files = layout.get(**t1w_query)
@@ -285,17 +285,17 @@ def collect_data(layout, participant_label, ses=None, task=None, run=None):
 
     # Compile into dictionary
     data = {
-        "bold_mag_files": bold_mag_files,
-        "bold_mag_metadata": bold_mag_metadata,
-        "bold_phase_files": bold_phase_files,
-        "bold_phase_metadata": bold_phase_metadata,
-        "sbref_mag_files": sbref_mag_files,
-        "sbref_mag_metadata": sbref_mag_metadata,
-        "sbref_phase_files": sbref_phase_files,
-        "sbref_phase_metadata": sbref_phase_metadata,
-        "t1w_files": t1w_files,
-        "t1w_metadata": t1w_metadata,
-        "t2w_files": t2w_files,
-        "t2w_metadata": t2w_metadata,
+        'bold_mag_files': bold_mag_files,
+        'bold_mag_metadata': bold_mag_metadata,
+        'bold_phase_files': bold_phase_files,
+        'bold_phase_metadata': bold_phase_metadata,
+        'sbref_mag_files': sbref_mag_files,
+        'sbref_mag_metadata': sbref_mag_metadata,
+        'sbref_phase_files': sbref_phase_files,
+        'sbref_phase_metadata': sbref_phase_metadata,
+        't1w_files': t1w_files,
+        't1w_metadata': t1w_metadata,
+        't2w_files': t2w_files,
+        't2w_metadata': t2w_metadata,
     }
     return data
