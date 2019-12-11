@@ -44,12 +44,12 @@ def get_parser():
     parser.add_argument(
         '--participant-label',
         nargs='+',
-        help='The label(s) of the participant(s) '
-        'that should be analyzed. The label '
-        'corresponds to sub-<participant_label> from the BIDS spec '
-        '(so it does not include 'sub-'). If this parameter is not '
-        'provided all subjects should be analyzed. Multiple '
-        'participants can be specified with a space separated list.',
+        help=('The label(s) of the participant(s) '
+              'that should be analyzed. The label '
+              'corresponds to sub-<participant_label> from the BIDS spec '
+              '(so it does not include "sub-"). If this parameter is not '
+              'provided all subjects should be analyzed. Multiple '
+              'participants can be specified with a space separated list.'),
     )
     image_opts.add_argument(
         '--session-label',
