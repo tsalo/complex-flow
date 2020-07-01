@@ -25,24 +25,25 @@ def get_motpar_name(source_file):
     return out_file
 
 
-def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file=None):
+def recover_kspace(magnitude, phase, out_real_file=None, out_imag_file=None):
     """
     Convert raw magnitude and phase data into effective k-space data, split
     into real and imaginary components.
-
-    NOTE: This is incorrect, since magnitude/phase != real/imaginary.
     """
     import numpy as np
     import nibabel as nib
     import os.path as op
     from nipype.utils.filemanip import split_filename
+    from nilearn._utils import check_niimg
+    from complex_utils import to_complex
 
-    magnitude_img = nib.load(magnitude_file)
-    phase_data = nib.load(phase_file).get_data()
-    magnitude_data = magnitude_img.get_data()
+    magnitude_img = check_niimg(magnitude)
+    phase_img = check_niimg(phase)
+    phase_data = phase_img.get_fdata()
+    magnitude_data = magnitude_img.get_fdata()
     kspace_data = np.zeros(phase_data.shape, dtype=complex)
+    cmplx_data = to_complex(magnitude_data, phase_data)
 
-    cmplx_data = np.vectorize(complex)(magnitude_data, phase_data)
     for i_vol in range(cmplx_data.shape[3]):
         for j_slice in range(cmplx_data.shape[2]):
             slice_data = cmplx_data[:, :, j_slice, i_vol]
@@ -57,17 +58,17 @@ def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file
         kspace_imag_data, magnitude_img.affine, magnitude_img.header
     )
     if out_real_file is None:
-        _, base, _ = split_filename(magnitude_file)
+        _, base, _ = split_filename(magnitude)
         out_real_file = op.abspath(base + '_real.nii.gz')
     if out_imag_file is None:
-        _, base, _ = split_filename(magnitude_file)
+        _, base, _ = split_filename(magnitude)
         out_imag_file = op.abspath(base + '_imag.nii.gz')
     kspace_real_img.to_filename(out_real_file)
     kspace_imag_img.to_filename(out_imag_file)
     return out_real_file, out_imag_file
 
 
-def convert_to_radians(phase_file, out_file=None):
+def convert_to_radians(phase, out_file=None):
     """
     Adapted from
     https://github.com/poldracklab/sdcflows/blob/
@@ -93,16 +94,17 @@ def convert_to_radians(phase_file, out_file=None):
     import numpy as np
     import nibabel as nib
     from nipype.utils.filemanip import split_filename
+    from nilearn._utils import check_niimg
 
-    img = nib.load(phase_file)
-    phase_data = img.get_data()
+    phase_img = check_niimg(phase)
+    phase_data = img.get_fdata()
     imax = phase_data.max()
     imin = phase_data.min()
     scaled = (phase_data - imin) / (imax - imin)
     rad_data = 2 * np.pi * scaled
     out_img = nib.Nifti1Image(rad_data, img.affine, img.header)
     if out_file is None:
-        _, base, _ = split_filename(phase_file)
+        _, base, _ = split_filename(phase)
         out_file = op.abspath(base + '_rescaled.nii.gz')
     out_img.to_filename(out_file)
     return out_file
@@ -140,12 +142,12 @@ def compute_phasediff(phase_files, phase_metadata, out_file=None):
     return out_file
 
 
-def fake_unwrap(magnitude_file, phase_file):
+def fake_unwrap(magnitude, phase):
     """
     An identity function used as a placeholder for PRELUDE,
     which can take a long time.
     """
-    unwrapped_phase_file = phase_file
+    unwrapped_phase_file = phase
     return unwrapped_phase_file
 
 
