@@ -9,6 +9,8 @@ def imgs_to_complex(mag, phase):
     """
     mag = check_niimg(mag)
     phase = check_niimg(phase)
+    # Convert to radians to be extra safe
+    phase = to_radians(phase)
     mag_data = mag.get_fdata()
     phase_data = phase.get_fdata()
     comp_data = to_complex(mag_data, phase_data)
