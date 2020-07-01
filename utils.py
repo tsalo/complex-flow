@@ -29,6 +29,8 @@ def recover_kspace(magnitude_file, phase_file, out_real_file=None, out_imag_file
     """
     Convert raw magnitude and phase data into effective k-space data, split
     into real and imaginary components.
+
+    NOTE: This is incorrect, since magnitude/phase != real/imaginary.
     """
     import numpy as np
     import nibabel as nib
