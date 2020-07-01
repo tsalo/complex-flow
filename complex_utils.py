@@ -1,4 +1,5 @@
 import numpy as np
+import nibabel as nib
 from nilearn._utils import check_niimg
 
 
@@ -102,3 +103,35 @@ def to_imag(mag, phase):
     """
     real = to_real(mag, phase)
     imag = np.tan(phase) * real
+
+
+def to_radians(phase):
+    """
+    Adapted from
+    https://github.com/poldracklab/sdcflows/blob/
+    659c2508ecef810c3acadbe808560b44d22801f9/sdcflows/interfaces/fmap.py#L94
+
+    Ensure that phase images are in a usable range for unwrapping.
+
+    From the FUGUE User guide::
+
+        If you have seperate phase volumes that are in integer format then do:
+
+        fslmaths orig_phase0 -mul 3.14159 -div 2048 phase0_rad -odt float
+        fslmaths orig_phase1 -mul 3.14159 -div 2048 phase1_rad -odt float
+
+        Note that the value of 2048 needs to be adjusted for each different
+        site/scanner/sequence in order to be correct. The final range of the
+        phase0_rad image should be approximately 0 to 6.28. If this is not the
+        case then this scaling is wrong. If you have separate phase volumes are
+        not in integer format, you must still check that the units are in radians,
+        and if not scale them appropriately using fslmaths.
+    """
+    phase_img = check_niimg(phase)
+    phase_data = phase_img.get_fdata()
+    imax = phase_data.max()
+    imin = phase_data.min()
+    scaled = (phase_data - imin) / (imax - imin)
+    rad_data = 2 * np.pi * scaled
+    out_img = nib.Nifti1Image(rad_data, phase_img.affine, phase_img.header)
+    return out_img
