@@ -50,7 +50,7 @@ if __name__ == '__main__':
     phase_files = [f.replace('_bold', '_phase') for f in magnitude_files]
 
     for i_echo, mag_file in enumerate(magnitude_files):
-        base_name = op.basename(mag_file)
+        base_name = op.join('/scratch/tsalo006/', op.basename(mag_file))
         pha_file = phase_files[i_echo]
         cmplx_file = base_name.replace('_bold', '_complex')
         cmplx_img = imgs_to_complex(mag_file, pha_file)
@@ -58,13 +58,13 @@ if __name__ == '__main__':
         print('Saved {}'.format(cmplx_file))
         # dwidenoise on magnitude
         out_file = base_name.replace('_bold', '_desc-dwiDenoised_bold')
-        cmd = ('singularity exec brainlife_mrtrix3_3.0.0.sif dwidenoise '
+        cmd = ('singularity exec --cleanenv /scratch/tsalo006/brainlife_mrtrix3_3.0.0.sif dwidenoise '
                '-nthreads 4 {} {}').format(mag_file, out_file)
         run(cmd)
 
         # dwidenoise on cmplx
         cmplx_denoised = base_name.replace('_bold', '_desc-complexDwiDenoised_complex')
-        cmd = ('singularity exec brainlife_mrtrix3_3.0.0.sif dwidenoise '
+        cmd = ('singularity exec --cleanenv /scratch/tsalo006/brainlife_mrtrix3_3.0.0.sif dwidenoise '
                '-nthreads 4 {} {}').format(cmplx_file, cmplx_denoised)
         run(cmd)
 
