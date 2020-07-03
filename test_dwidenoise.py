@@ -1,3 +1,6 @@
+"""
+Run dwidenoise on either magnitude-only or complex multi-echo data.
+"""
 import os
 import os.path as op
 from glob import glob
@@ -56,15 +59,17 @@ if __name__ == '__main__':
         cmplx_img = imgs_to_complex(mag_file, pha_file)
         cmplx_img.to_filename(cmplx_file)
         print('Saved {}'.format(cmplx_file))
-        # dwidenoise on magnitude
+        # dwidenoise on magnitude-only data
         out_file = base_name.replace('_bold', '_desc-dwiDenoised_bold')
-        cmd = ('singularity exec --cleanenv /scratch/tsalo006/brainlife_mrtrix3_3.0.0.sif dwidenoise '
+        cmd = ('singularity exec --cleanenv '
+               '/scratch/tsalo006/brainlife_mrtrix3_3.0.0.sif dwidenoise '
                '-nthreads 4 {} {}').format(mag_file, out_file)
         run(cmd)
 
-        # dwidenoise on cmplx
+        # dwidenoise on complex data
         cmplx_denoised = base_name.replace('_bold', '_desc-complexDwiDenoised_complex')
-        cmd = ('singularity exec --cleanenv /scratch/tsalo006/brainlife_mrtrix3_3.0.0.sif dwidenoise '
+        cmd = ('singularity exec --cleanenv '
+               '/scratch/tsalo006/brainlife_mrtrix3_3.0.0.sif dwidenoise '
                '-nthreads 4 {} {}').format(cmplx_file, cmplx_denoised)
         run(cmd)
 
