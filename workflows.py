@@ -1,38 +1,46 @@
 """
 Perform minimal preprocessing.
 
-Get functions appear to be working. They require pybids>='0.9.4' (unreleased)
+Get functions appear to be working. They require pybids>='0.9.4'
 
 A brief description of the steps:
 For the T1w images:
-1. Estimate normalization transform to MNI space from T1w space.
+1.  Estimate normalization transform to MNI space from T1w space.
 
-For the GRE field map images:
-1. Generate field map with sdcflows. Unknown if this will be used or not.
+For the EPI field map images:
+1.  Generate field map with sdcflows.
 
 For the single-band reference images:
-1. Process phase data (rescale and unwrap)
-2. Generate field map for SBRef from first two echoes' magnitude and phase data
-   (with sdcflows). This is a single image, so it should be easy(ish).
-3. Apply field map to all echoes of SBRef (both magnitude and processed phase).
-4. Estimate coregistration transform to T1w space using unwarped SBRef from
-   first echo.
+1.  Process phase data (rescale and unwrap).
+2.  Generate field map for SBRef from first two echoes' magnitude and phase data
+    (with sdcflows). This is a single image, so it should be easy(ish).
+3.  Apply field map to all echoes of SBRef (both magnitude and processed phase).
+4.  Estimate coregistration transform to T1w space using unwarped SBRef from
+    first echo.
 
 For the BOLD data:
-1. Process phase data (rescale and unwrap)
-2. Generate volume-specific field maps from first two echoes' magnitude and
-   phase data (with sdcflows)
-3. Apply field maps to all echoes (both magnitude and processed phase)
-4. Estimate motion correction transform using unwarped SBRef's first echo as
-   the reference image and the unwarped BOLD first echo as the moving data.
-5. Perform slice timing correction on motion-corrected and unwarped magnitude
-   and phase data.
-6. Concatenate unwarping and motion correction transforms (pre-denoising/STC
-   transforms).
-7. Concatenate just coregistration and normalization transforms
-   (post-denoising/STC transforms).
-8. Apply concatenated pre-denoising transform to all echoes (both magnitude and
-   processed phase)
+1.  Combine magnitude and phase data into complex-valued images.
+2.  Run DWIDenoise on complex-valued data.
+3.  Split denoised magnitude data out of denoised complex data.
+    Discard denoised phase data.
+4.  Process phase data (rescale and unwrap).
+5.  Generate volume-specific field maps from first two echoes' magnitude and
+    phase data (with sdcflows).
+6.  Apply field maps to all echoes (both magnitude and processed phase).
+7.  Estimate motion correction transform using unwarped SBRef's first echo as
+    the reference image and the unwarped BOLD first echo as the moving data.
+8.  Perform slice timing correction on motion-corrected and unwarped magnitude
+    and phase data.
+9.  Concatenate unwarping and motion correction transforms (pre-denoising/STC
+    transforms).
+10. Concatenate coregistration and normalization transforms (post-denoising/STC
+    transforms).
+11. Apply concatenated pre-denoising transform to all echoes (both magnitude and
+    processed phase).
+12. Estimate T2* map from undistorted, motion corrected, and slice timing
+    corrected magnitude and phase data.
+13. Run multi-echo denoising using T2* map and magnitude data.
+14. Apply post-denoising transform to denoised data to warp to standard space.
 
 Outputs:
 1. Preprocessed multi-echo magnitude data in native space
@@ -41,6 +49,7 @@ Outputs:
 4. Post-denoising transform
 5. Preprocessed multi-echo single-band reference data in native space
 6. Motion parameters
+7. Multi-echo denoised magnitude data in native space
 """
 import os
 from copy import deepcopy
