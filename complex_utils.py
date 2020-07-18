@@ -39,7 +39,7 @@ def to_complex(mag, phase):
     """
     real = to_real(mag, phase)
     imag = to_imag(mag, phase)
-    comp = mag + (1j * phase)
+    comp = real + (1j * imag)
     return comp
 
 
@@ -105,6 +105,7 @@ def to_imag(mag, phase):
     """
     real = to_real(mag, phase)
     imag = np.tan(phase) * real
+    return imag
 
 
 def to_radians(phase):
@@ -126,8 +127,8 @@ def to_radians(phase):
         site/scanner/sequence in order to be correct. The final range of the
         phase0_rad image should be approximately 0 to 6.28. If this is not the
         case then this scaling is wrong. If you have separate phase volumes are
-        not in integer format, you must still check that the units are in radians,
-        and if not scale them appropriately using fslmaths.
+        not in integer format, you must still check that the units are in
+        radians, and if not scale them appropriately using fslmaths.
     """
     phase_img = check_niimg(phase)
     phase_data = phase_img.get_fdata()
