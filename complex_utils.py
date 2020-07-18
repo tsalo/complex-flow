@@ -138,3 +138,18 @@ def to_radians(phase):
     rad_data = 2 * np.pi * scaled
     out_img = nib.Nifti1Image(rad_data, phase_img.affine, phase_img.header)
     return out_img
+
+
+def split_multiecho_volumewise(echo_imgs):
+    """
+    Take 4D echo-specific images, split them by volume, and concatenate each
+    volume across echoes, as input for ROMEO.
+    """
+    from nilearn import image
+    out_imgs = []
+    for i in range(echo_imgs[0].shape[3]):
+        vol_imgs = []
+        for j_echo, echo_img in enumerate(echo_imgs):
+            vol_imgs.append(image.index_img(echo_img))
+        out_imgs.append(image.concat_imgs(vol_imgs))
+    return out_imgs
