@@ -146,10 +146,11 @@ def split_multiecho_volumewise(echo_imgs):
     volume across echoes, as input for ROMEO.
     """
     from nilearn import image
+    echo_imgs = [check_niimg(ei) for ei in echo_imgs]
     out_imgs = []
     for i in range(echo_imgs[0].shape[3]):
         vol_imgs = []
         for j_echo, echo_img in enumerate(echo_imgs):
-            vol_imgs.append(image.index_img(echo_img))
+            vol_imgs.append(image.index_img(echo_img, i))
         out_imgs.append(image.concat_imgs(vol_imgs))
     return out_imgs
