@@ -1,8 +1,0 @@
-/home/data/nbc/nbclab-env/env-py3/lib/python3.6/site-packages/dicom/__init__.py:53: UserWarning: 
-This code is using an older version of pydicom, which is no longer 
-maintained as of Jan 2017.  You can access the new pydicom features and API 
-by installing `pydicom` from PyPI.
-See 'Transitioning to pydicom 1.x' section at pydicom.readthedocs.org 
-for more information.
-
-  warnings.warn(msg)

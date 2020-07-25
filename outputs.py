@@ -8,6 +8,8 @@ from niworkflows.interfaces.surf import GiftiNameSource
 from niworkflows.config import DEFAULT_MEMORY_MIN_GB
 from niworkflows.interfaces import DerivativesDataSink
 
+from utils import pick_first
+
 
 def init_func_derivatives_wf(
     bids_root,

@@ -87,8 +87,8 @@ def convert_to_radians(phase, out_file=None):
         site/scanner/sequence in order to be correct. The final range of the
         phase0_rad image should be approximately 0 to 6.28. If this is not the
         case then this scaling is wrong. If you have separate phase volumes are
-        not in integer format, you must still check that the units are in radians,
-        and if not scale them appropriately using fslmaths.
+        not in integer format, you must still check that the units are in
+        radians, and if not scale them appropriately using fslmaths.
     """
     import os.path as op
     import numpy as np
@@ -97,12 +97,12 @@ def convert_to_radians(phase, out_file=None):
     from nilearn._utils import check_niimg
 
     phase_img = check_niimg(phase)
-    phase_data = img.get_fdata()
+    phase_data = phase_img.get_fdata()
     imax = phase_data.max()
     imin = phase_data.min()
     scaled = (phase_data - imin) / (imax - imin)
     rad_data = 2 * np.pi * scaled
-    out_img = nib.Nifti1Image(rad_data, img.affine, img.header)
+    out_img = nib.Nifti1Image(rad_data, phase_img.affine, phase_img.header)
     if out_file is None:
         _, base, _ = split_filename(phase)
         out_file = op.abspath(base + '_rescaled.nii.gz')
@@ -123,7 +123,6 @@ def compute_phasediff(phase_files, phase_metadata, out_file=None):
     Compute phase-difference image in rad/s from two phase files in rad/s.
     """
     import os.path as op
-    import numpy as np
     import nibabel as nib
     from nipype.utils.filemanip import split_filename
 
@@ -132,7 +131,8 @@ def compute_phasediff(phase_files, phase_metadata, out_file=None):
     phase_metadata = phase_metadata[:2]
     imgs = [nib.load(pf) for pf in phase_files]
     data = [img.get_data() for img in imgs]
-    te_diff = 1000.0 * (phase_metadata[1]['EchoTime'] - phase_metadata[0]['EchoTime'])
+    te_diff = 1000.0 * (phase_metadata[1]['EchoTime'] -
+                        phase_metadata[0]['EchoTime'])
     data = 1000.0 * (data[1] - data[0]) / te_diff
     out_img = nib.Nifti1Image(data, imgs[0].affine, imgs[0].header)
     if out_file is None:
@@ -213,7 +213,8 @@ def get_sbref(layout, func_obj, reconstruction='magnitude'):
     """
     entity_dict = func_obj.get_entities().copy()
     entity_dict.pop('suffix')
-    files = layout.get(suffix='sbref', reconstruction=reconstruction, **entity_dict)
+    files = layout.get(suffix='sbref', reconstruction=reconstruction,
+                       **entity_dict)
     assert len(files) <= 1
     if len(files) == 0:
         return None
@@ -256,7 +257,9 @@ def collect_data(layout, participant_label, ses=None, task=None, run=None):
 
     first_echo_files = layout.get(**bold_query)
     bold_mag_files = [get_other_echoes(layout, f) for f in first_echo_files]
-    bold_phase_files = [[get_phase(layout, f) for f in r] for r in bold_mag_files]
+    bold_phase_files = [
+        [get_phase(layout, f) for f in r] for r in bold_mag_files
+    ]
     sbref_mag_files = [
         [get_sbref(layout, f, reconstruction='magnitude') for f in r]
         for r in bold_mag_files
@@ -276,11 +279,15 @@ def collect_data(layout, participant_label, ses=None, task=None, run=None):
     t1w_files = [f.path for f in t1w_files]
     t2w_files = [f.path for f in t2w_files]
 
-    bold_mag_metadata = [[layout.get_metadata(f) for f in r] for r in bold_mag_files]
+    bold_mag_metadata = [
+        [layout.get_metadata(f) for f in r] for r in bold_mag_files
+    ]
     bold_phase_metadata = [
         [layout.get_metadata(f) for f in r] for r in bold_phase_files
     ]
-    sbref_mag_metadata = [[layout.get_metadata(f) for f in r] for r in sbref_mag_files]
+    sbref_mag_metadata = [
+        [layout.get_metadata(f) for f in r] for r in sbref_mag_files
+    ]
     sbref_phase_metadata = [
         [layout.get_metadata(f) for f in r] for r in sbref_phase_files
     ]

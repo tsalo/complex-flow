@@ -65,7 +65,8 @@ def get_parser():
         help='select a specific task to be processed',
     )
     image_opts.add_argument(
-        '--run-label', action='store', default=None, help='select a run to analyze'
+        '--run-label', action='store', default=None,
+        help='select a run to analyze'
     )
 
     # performance options
@@ -121,7 +122,8 @@ def main(argv=None):
         subject_list = opts.participant_label
     else:  # for all subjects
         subject_dirs = glob(os.path.join(bids_dir, 'sub-*'))
-        subject_list = [subject_dir.split('-')[-1] for subject_dir in subject_dirs]
+        subject_list = [subject_dir.split('-')[-1] for subject_dir in
+                        subject_dirs]
 
     # Nipype plugin configuration
     # Load base plugin_settings from file if --use-plugin
@@ -135,7 +137,10 @@ def main(argv=None):
         # Defaults
         plugin_settings = {
             'plugin': 'MultiProc',
-            'plugin_args': {'raise_insufficient': False, 'maxtasksperchild': 1},
+            'plugin_args': {
+                'raise_insufficient': False,
+                'maxtasksperchild': 1
+            },
         }
 
     # Resource management options
@@ -173,7 +178,8 @@ def main(argv=None):
     )
 
     if opts.graph:
-        participant_wf.write_graph(graph2use='flat', format='svg', simple_form=False)
+        participant_wf.write_graph(graph2use='flat', format='svg',
+                                   simple_form=False)
 
     try:
         participant_wf.run(**plugin_settings)
