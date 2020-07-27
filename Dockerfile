@@ -20,7 +20,7 @@ RUN apt-get update -qq && apt-get install -yq --no-install-recommends  \
 
 RUN mkdir /root/ROMEO \
    && cd /root/ROMEO/ \
-   && wget https://github.com/korbinian90/ROMEO/releases/download/v2.0/romeo_linux_2.0.1.tar.gz \
-   && tar xzf romeo_linux_2.0.1.tar.gz
+    && wget https://github.com/korbinian90/ROMEO/releases/download/v2.0.2/romeo_linux_2.0.2.tar.gz \
+   && tar xzf romeo_linux_2.0.2.tar.gz
 
-ENTRYPOINT ["/root/ROMEO/romeo_linux_2.0.1/bin/romeo"]
+ENTRYPOINT ["/root/ROMEO/tmp/romeo_linux_2.0.2/bin/romeo"]
