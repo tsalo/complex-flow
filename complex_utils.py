@@ -26,7 +26,7 @@ def split_complex(comp_img):
     comp_data = comp_img.get_fdata(dtype=comp_img.get_data_dtype())
     real = comp_data.real
     imag = comp_data.imag
-    mag = to_mag(real, imag)
+    mag = abs(comp_data)
     phase = to_phase(real, imag)
     mag = nib.Nifti1Image(mag, comp_img.affine)
     phase = nib.Nifti1Image(phase, comp_img.affine)
@@ -36,10 +36,10 @@ def split_complex(comp_img):
 def to_complex(mag, phase):
     """
     Convert magnitude and phase data into complex real+imaginary data.
+
+    Should be equivalent to cmath.rect.
     """
-    real = to_real(mag, phase)
-    imag = to_imag(mag, phase)
-    comp = real + (1j * imag)
+    comp = mag * (np.cos(phase) + np.sin(phase)*1j)
     return comp
 
 
@@ -57,6 +57,8 @@ def to_phase(real, imag):
     """
     Convert real and imaginary data to phase data.
 
+    Equivalent to cmath.phase.
+
     https://www.eeweb.com/quizzes/convert-between-real-imaginary-and-magnitude-phase
     """
     phase = np.arctan2(imag, real)
@@ -66,36 +68,9 @@ def to_phase(real, imag):
 def to_real(mag, phase):
     """
     Convert magnitude and phase data to real data.
-
-    Notes
-    -----
-    > # the canonical formula for magnitude from complex
-    > mag = np.sqrt((real ** 2) + (imag ** 2))
-    > # square both sides
-    > mag ** 2 = (real ** 2) + (imag ** 2)
-    > # subtract real from both sides
-    > imag ** 2 = (mag ** 2) - (real ** 2)
-    > # take sqrt of both sides
-    > imag = np.sqrt((mag ** 2) - (real ** 2))
-    > # the canonical formula for phase from complex
-    > phase = np.arctan(imag / real)
-    > # tan is inverse of arctan, so take tan of both sides
-    > imag / real = np.tan(phase)
-    > # multiply both sides by real
-    > imag = real * np.tan(phase)
-    > # substitute solution from mag calculation
-    > real * np.tan(phase) = np.sqrt((mag ** 2) - (real ** 2))
-    > # square both sides
-    > (real * np.tan(phase)) ** 2 = (mag ** 2) - (real ** 2)
-    > # add real ** 2 to both sides
-    > ((np.tan(phase) * real) ** 2) + (real ** 2) = mag ** 2
-    > (np.tan(phase) ** 2 + 1) * (real ** 2) = mag ** 2
-    > # sqrt of both sides
-    > np.sqrt(np.tan(phase) ** 2 + 1) * real = mag
-    > # divide both sides by phase term
-    > real2 = mag / np.sqrt(np.tan(phase) ** 2 + 1)
     """
-    real = mag / np.sqrt(np.tan(phase) ** 2 + 1)
+    comp = to_complex(mag, phase)
+    real = comp.real
     return real
 
 
@@ -103,8 +78,8 @@ def to_imag(mag, phase):
     """
     Convert magnitude and phase data to imaginary data.
     """
-    real = to_real(mag, phase)
-    imag = np.tan(phase) * real
+    comp = to_complex(mag, phase)
+    imag = comp.imag
     return imag
 
 
@@ -114,7 +89,7 @@ def to_radians(phase):
     https://github.com/poldracklab/sdcflows/blob/
     659c2508ecef810c3acadbe808560b44d22801f9/sdcflows/interfaces/fmap.py#L94
 
-    Ensure that phase images are in a usable range for unwrapping.
+    Ensure that phase images are in a usable range for unwrapping [0, 2pi).
 
     From the FUGUE User guide::
 
