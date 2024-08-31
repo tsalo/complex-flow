@@ -1,6 +1,8 @@
 # complex-flow
 Initial work on a complex-valued fMRI preprocessing workflow.
 
+Dropped in favor of fMRIPost-phase.
+
 ## Goals
 
 - Processing of both magnitude and phase data for both single- and multi-echo data
